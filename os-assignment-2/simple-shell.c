@@ -9,14 +9,14 @@
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_ARGS 100
 
-char ** commandhistory[1000];
+char* commandhistory[1000];
 
 int commandcounter = 0;
 
 char** nonsystemcommands[2] = {"cd", "exit"};
 
 void print_cwd(){
-    char directory[1000];
+    char *directory;
     getcwd(directory, sizeof(directory));
     printf("%s", directory);
 }
@@ -32,7 +32,43 @@ void fork_process(char** tokens){
             printf("\nCould not execute that command.");
         }
     }
+    else {
+        wait(NULL);
+        return;
+    }
+
 }
+
+void check_pipe(char* command, char** tokens){
+    int counter;
+    int status = 0;
+    for (counter = 0; counter < 2; counter++){
+        tokens[counter] = strsep(command, "|");
+        if (tokens[counter] == NULL){
+            break;
+        }
+    if (tokens[1] != NULL){
+        status = 1;
+    }
+    else {
+        status = 0;
+    }
+    }
+    return status;
+}
+
+void fork_with_pipes(char** tokens, char** pipes){
+    int pid1;
+    int pid2;
+    int pipes[2];
+    if (pipe(pipes) == -1) {
+        printf("Error forming the pipe");
+        return;
+    }
+
+
+}
+
 int get_input(char* command){
     int status = 0;
     char *temp;
@@ -55,6 +91,7 @@ int number_of_tokens(char* command, char** tokens){
 
     while (token != NULL){
         tokens[token_counter] = token;
+        token_counter++;
         token = strtok(NULL, " ");
     }
     return token_counter;

@@ -162,6 +162,7 @@ int main(){
 
     while (1) {
         print_cwd();
+        printf("/");
         get_command(command);
         get_args(command, tokens);
         

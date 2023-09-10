@@ -55,18 +55,19 @@ void execute_system_command(char** tokens){
     pid_t newpid = fork();
     int status;
     if (newpid  == -1){
-        perror("Failed to fork a new process.");
+        perror("\nFailed to fork child process.");
         return;
     }
     else if (newpid == 0){
         if (execvp(tokens[0], tokens) == -1){
-            printf("\nCould not execute that command.");
+            printf("\nCould not execute that command.\n");
         }
         exit(0);
     }
     else {
         process_IDs[commandcounter] = newpid;
-        waitpid(newpid, &status, 0);
+        wait(NULL);
+        return;
     }
 
 }
@@ -112,6 +113,7 @@ void execute_piped_commands(char** tokens, char** piped_tokens) {
             }
         }
         else {
+            commandcounter++;
             wait(NULL);
             wait(NULL);
         }
@@ -170,24 +172,48 @@ int main(){
         }
 
         if (strcmp("cd", command) == 0) {
+            command_history[commandcounter] = "cd";
+            process_IDs[commandcounter] = getpid();
             chdir(tokens[1]);
             continue;
         }
 
+        if (strcmp("echo", tokens[0]) == 0) {
+            command_history[commandcounter] = command;
+            process_IDs[commandcounter] = getpid();
+            int j = 1;
+            while (tokens[j] != NULL) {
+                printf("%s ", tokens[j]);
+                j++;
+            }
+            printf("\n");
+            continue;
+        }
+
         if (strcmp("history", command) == 0) {
+            command_history[commandcounter] = "history";
+            process_IDs[commandcounter] = getpid();
             for (int i = 0; i < commandcounter; i++){
                 printf("Command: %s\n", command_history[i]);
                 printf("PID: %d\n", process_IDs[i]);
-                printf("Time taken to execute: %.2f seconds\n", execution_times[i]);
+                printf("Time taken to execute: %.2f seconds\n\n", execution_times[i]);
             }
         }
 
         int pipecheck = check_command_type(command, tokens, pipedtokens);
         if (pipecheck) {
+            clock_t start = clock();
             execute_piped_commands(tokens, pipedtokens);
+            clock_t end = clock();
+            double duration = (double)(end - start)/CLOCKS_PER_SEC;
+            execution_times[commandcounter] = duration;
         }
         else {
+            clock_t start = clock();
             execute_system_command(tokens);
+            clock_t end = clock();
+            double duration = (double)(end - start)/CLOCKS_PER_SEC;
+            execution_times[commandcounter] = duration;
         }
 
     }

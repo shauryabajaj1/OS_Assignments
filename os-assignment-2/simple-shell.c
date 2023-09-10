@@ -83,8 +83,8 @@ void execute_system_command(char** tokens){
 }
 
 void execute_piped_commands(char** tokens, char** piped_tokens) {
-    pid_t p1;
-    pid_t p2;
+    int p1;
+    int p2;
     int pipefds[2];
 
     if (pipe(pipefds) == -1) {
@@ -110,21 +110,16 @@ void execute_piped_commands(char** tokens, char** piped_tokens) {
     }
     else {
         p2 = fork();
-        if (p2 == -1) {
-            printf("Couldn't fork a new process");
-            return;
-        }
         if (p2 == 0) {
             close(pipefds[1]);
             dup2(pipefds[0], STDIN_FILENO);
             if (execvp(piped_tokens[0], piped_tokens) == -1) {
                 printf("Couldn't execute that command\n");
-                exit(0);
+                exit(EXIT_SUCCESS);
             }
         }
         else {
             commandcounter++;
-            wait(NULL);
             wait(NULL);
         }
     }

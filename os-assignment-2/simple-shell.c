@@ -7,6 +7,7 @@
 #include <readline/history.h>
 #include <time.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_ARGS 100
@@ -32,7 +33,7 @@ void get_command(char* command){
     fgets(command, MAX_COMMAND_LENGTH, stdin);
     command[strcspn(command, "\n")] = '\0';
     if (strlen(command) != 0 && commandcounter < 1000) {
-        command_history[commandcounter] = command;
+        command_history[commandcounter] = strdup(command);
         commandcounter++;
     }
 
@@ -63,7 +64,7 @@ void execute_system_command(char** tokens){
     else if (newpid == 0){
         process_IDs[commandcounter] = newpid;
         if (execvp(tokens[0], tokens) < 0) {
-            printf("Couldn't execute that command");
+            printf("Couldn't execute that command\n");
         }
         exit(0);
     }
@@ -97,7 +98,7 @@ void execute_piped_commands(char** tokens, char** piped_tokens) {
         dup2(pipefds[1], STDOUT_FILENO);
         close(pipefds[1]);
         if (execvp(tokens[0], tokens) == -1) {
-            printf("Couldn't execute that command");
+            printf("Couldn't execute that command\n");
             exit(EXIT_SUCCESS);
         }
     }
@@ -111,7 +112,7 @@ void execute_piped_commands(char** tokens, char** piped_tokens) {
             close(pipefds[1]);
             dup2(pipefds[0], STDIN_FILENO);
             if (execvp(piped_tokens[0], piped_tokens) == -1) {
-                printf("Couldn't execute that command");
+                printf("Couldn't execute that command\n");
                 exit(0);
             }
         }
@@ -180,7 +181,7 @@ int main(){
             continue;
         }
 
-        if (strcmp("echo", tokens[0]) == 0) {
+        if (tokens[0] != NULL && strcmp("echo", tokens[0]) == 0) {
             command_history[commandcounter] = command;
             process_IDs[commandcounter] = getpid();
             commandcounter++;

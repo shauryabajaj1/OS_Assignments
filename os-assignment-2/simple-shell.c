@@ -31,36 +31,39 @@ void get_command(char* command){
     status = 1;
     fgets(command, MAX_COMMAND_LENGTH, stdin);
     command[strcspn(command, "\n")] = '\0';
-    if (strlen(command) != 0) {
+    if (strlen(command) != 0 && commandcounter < 1000) {
         command_history[commandcounter] = command;
         commandcounter++;
     }
 
 }
 
-void get_args(char* command, char** tokens){
-    int token_counter;
-    for (token_counter = 0; token_counter < MAX_ARGS; token_counter++) {
-        tokens[token_counter] = strsep(&command, " ");
-        if (tokens[token_counter] == NULL)
+void get_args(char* command, char** tokencommands)
+{
+    int i;
+  
+    for (i = 0; i < MAX_ARGS; i++) {
+        tokencommands[i] = strsep(&command, " ");
+  
+        if (tokencommands[i] == NULL)
             break;
-        if (strlen(tokens[token_counter]) == 0)
-            token_counter -= 1;
+        if (strlen(tokencommands[i]) == 0)
+            i--;
     }
-    
 }
-
 
 void execute_system_command(char** tokens){
     pid_t newpid = fork();
     int status;
+    int i = 0;
     if (newpid  == -1){
-        perror("\nFailed to fork child process.");
+        printf("\nFailed to fork child process.");
         return;
     }
     else if (newpid == 0){
-        if (execvp(tokens[0], tokens) == -1){
-            printf("\nCould not execute that command.\n");
+        process_IDs[commandcounter] = newpid;
+        if (execvp(tokens[0], tokens) < 0) {
+            printf("Couldn't execute that command");
         }
         exit(0);
     }
@@ -120,28 +123,27 @@ void execute_piped_commands(char** tokens, char** piped_tokens) {
     }
 }
 
-int check_pipe(char* command, char** tokens){
-    int counter;
-    int status = 0;
-    for (counter = 0; counter < 2; counter++){
-        tokens[counter] = strsep(&command, "|");
-        if (tokens[counter] == NULL){
+int check_pipe(char* command, char** piped_tokens)
+{
+    int i;
+    for (i = 0; i < 2; i++) {
+        piped_tokens[i] = strsep(&command, "|");
+        if (piped_tokens[i] == NULL)
             break;
-        }
-    if (tokens[1] != NULL){
-        status = 0;
     }
+  
+    if (piped_tokens[1] == NULL)
+        return 0;
     else {
-        status = 1;
+        return 1;
     }
-    }
-    return status;
 }
 
 int check_command_type(char* command, char** tokens, char** piped_tokens) {
     char* piped_command[2];
     int ifpiped = 0;
     int status = 0;
+    
     ifpiped = check_pipe(command, piped_command);
 
     if (ifpiped) {
@@ -181,6 +183,7 @@ int main(){
         if (strcmp("echo", tokens[0]) == 0) {
             command_history[commandcounter] = command;
             process_IDs[commandcounter] = getpid();
+            commandcounter++;
             int j = 1;
             while (tokens[j] != NULL) {
                 printf("%s ", tokens[j]);
@@ -191,17 +194,17 @@ int main(){
         }
 
         if (strcmp("history", command) == 0) {
-            command_history[commandcounter] = "history";
-            process_IDs[commandcounter] = getpid();
-            for (int i = 0; i < commandcounter; i++){
-                printf("Command: %s\n", command_history[i]);
-                printf("PID: %d\n", process_IDs[i]);
-                printf("Time taken to execute: %.2f seconds\n\n", execution_times[i]);
+            for (int printcounter = 0; printcounter < commandcounter; printcounter++){
+                printf("Command: %s\n", command_history[printcounter]);
+                printf("PID: %d\n", process_IDs[printcounter]);
+                printf("Time taken to execute: %.2f seconds\n\n", execution_times[printcounter]);
             }
         }
 
-        int pipecheck = check_command_type(command, tokens, pipedtokens);
-        if (pipecheck) {
+        int pipecheck = check_pipe(command, pipedtokens);
+        
+        if (pipecheck == 1) {
+            int temporary = check_command_type(command, tokens, pipedtokens);
             clock_t start = clock();
             execute_piped_commands(tokens, pipedtokens);
             clock_t end = clock();

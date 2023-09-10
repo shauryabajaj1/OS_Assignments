@@ -56,18 +56,17 @@ void execute_system_command(char** tokens){
     int status;
     if (newpid  == -1){
         perror("Failed to fork a new process.");
-        exit(1);
+        return;
     }
     else if (newpid == 0){
         if (execvp(tokens[0], tokens) == -1){
             printf("\nCould not execute that command.");
         }
+        exit(0);
     }
     else {
-        pid_t currentpid = getpid();
-        process_IDs[commandcounter] = currentpid;
-        wait(NULL);
-        return;
+        process_IDs[commandcounter] = newpid;
+        waitpid(newpid, &status, 0);
     }
 
 }
@@ -128,10 +127,10 @@ int check_pipe(char* command, char** tokens){
             break;
         }
     if (tokens[1] != NULL){
-        status = 1;
+        status = 0;
     }
     else {
-        status = 0;
+        status = 1;
     }
     }
     return status;
@@ -176,11 +175,14 @@ int main(){
         }
 
         if (strcmp("history", command) == 0) {
-
+            for (int i = 0; i < commandcounter; i++){
+                printf("Command: %s\n", command_history[i]);
+                printf("PID: %d\n", process_IDs[i]);
+                printf("Time taken to execute: %.2f seconds\n", execution_times[i]);
+            }
         }
 
         int pipecheck = check_command_type(command, tokens, pipedtokens);
-
         if (pipecheck) {
             execute_piped_commands(tokens, pipedtokens);
         }

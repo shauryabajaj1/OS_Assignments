@@ -6,6 +6,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <time.h>
+#include <sys/wait.h>
 
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_ARGS 100
@@ -18,10 +19,8 @@ pid_t process_IDs[1000];
 
 int commandcounter = 0;
 
-char** nonsystemcommands[2] = {"cd", "exit"};
-
 void print_cwd(){
-    char *directory;
+    char directory[1000];
     getcwd(directory, sizeof(directory));
     printf("%s", directory);
 }
@@ -31,7 +30,7 @@ void get_command(char* command){
     printf("simple-shell~$ ");
     status = 1;
     fgets(command, MAX_COMMAND_LENGTH, stdin);
-    command[strcspn(command, "\n")] = "\0";
+    command[strcspn(command, "\n")] = '\0';
     if (strlen(command) != 0) {
         command_history[commandcounter] = command;
         commandcounter++;
@@ -124,7 +123,7 @@ int check_pipe(char* command, char** tokens){
     int counter;
     int status = 0;
     for (counter = 0; counter < 2; counter++){
-        tokens[counter] = strsep(command, "|");
+        tokens[counter] = strsep(&command, "|");
         if (tokens[counter] == NULL){
             break;
         }

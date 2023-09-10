@@ -12,6 +12,8 @@
 #define MAX_COMMAND_LENGTH 1000
 #define MAX_ARGS 100
 
+volatile sig_atomic_t ctrlc = 0;
+
 char* command_history[1000];
 
 double execution_times[1000];
@@ -24,6 +26,10 @@ void print_cwd(){
     char directory[1000];
     getcwd(directory, sizeof(directory));
     printf("%s", directory);
+}
+
+void ctrlc_handler(int signumber){
+    ctrlc = 1;
 }
 
 void get_command(char* command){
@@ -140,22 +146,11 @@ int check_pipe(char* command, char** piped_tokens)
     }
 }
 
-int check_command_type(char* command, char** tokens, char** piped_tokens) {
+void get_piped_args(char* command, char** tokens, char** piped_tokens) {
     char* piped_command[2];
-    int ifpiped = 0;
     int status = 0;
-    
-    ifpiped = check_pipe(command, piped_command);
-
-    if (ifpiped) {
-        get_args(piped_command[0], tokens);
-        get_args(piped_command[1], piped_tokens);
-        status = 1;
-    }
-    else {
-        get_args(command, tokens);
-    }
-    return status;
+    get_args(piped_command[0], tokens);
+    get_args(piped_command[1], piped_tokens);
 }
 
 
@@ -202,15 +197,13 @@ int main(){
         if (strcmp("history", command) == 0) {
             for (int printcounter = 0; printcounter < commandcounter; printcounter++){
                 printf("Command: %s\n", command_history[printcounter]);
-                printf("PID: %d\n", process_IDs[printcounter]);
-                printf("Time taken to execute: %.2f seconds\n\n", execution_times[printcounter]);
             }
         }
 
         int pipecheck = check_pipe(command, pipedtokens);
         
         if (pipecheck == 1) {
-            int temporary = check_command_type(command, tokens, pipedtokens);
+            get_piped_args(command, tokens, pipedtokens);
             clock_t start = clock();
             execute_piped_commands(tokens, pipedtokens);
             clock_t end = clock();

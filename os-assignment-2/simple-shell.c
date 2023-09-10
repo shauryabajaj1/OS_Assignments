@@ -139,8 +139,9 @@ int check_pipe(char* command, char** piped_tokens)
             break;
     }
   
-    if (piped_tokens[1] == NULL)
+    if (piped_tokens[1] == NULL){
         return 0;
+    }
     else {
         return 1;
     }

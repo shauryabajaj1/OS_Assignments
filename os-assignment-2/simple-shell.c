@@ -32,7 +32,7 @@ void get_command(char* command){
     status = 1;
     fgets(command, MAX_COMMAND_LENGTH, stdin);
     command[strcspn(command, "\n")] = '\0';
-    if (strlen(command) != 0 && commandcounter < 1000) {
+    if (strlen(command) != 0 && commandcounter < 1000 && strcmp("history", command) != 0) {
         command_history[commandcounter] = strdup(command);
         commandcounter++;
     }
@@ -163,7 +163,7 @@ int main(){
     char command[MAX_COMMAND_LENGTH];
     char* tokens[MAX_ARGS];
     char* pipedtokens[MAX_ARGS];
-
+    
     while (1) {
         print_cwd();
         printf("/");
@@ -171,6 +171,11 @@ int main(){
         get_args(command, tokens);
         
         if (strcmp("exit", command) == 0) {
+            for (int i = 0; i < commandcounter; i++) {
+                printf("Command: %s\n", command_history[i]);
+                printf("PID: %d\n", process_IDs[i]);
+                printf("Time taken to execute: %.2f seconds\n\n", execution_times[i]);
+            }
             break;
         }
 

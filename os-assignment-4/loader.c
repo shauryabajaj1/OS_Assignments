@@ -6,7 +6,6 @@
 
 Elf32_Ehdr *ehdr;
 Elf32_Phdr *phdr;
-Elf32_Phdr *program_headers;
 
 int fd;
 int ehdr_read;
@@ -35,15 +34,18 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
     void *fault_address = info->si_addr;
     size_t page_size = PAGE_SIZE;
     int fault = (int)fault_address;
-
+    printf("Segmentation fault caught at: %p\n", fault_address);
       for (int i = 0; i < ehdr->e_phnum; i++) {
           phdr = (Elf32_Phdr *)malloc(sizeof(Elf32_Phdr));
+          lseek(fd, ehdr->e_phoff + i*ehdr->e_phentsize, SEEK_SET);
           int phdr_read = read(fd, phdr, sizeof(Elf32_Phdr));
         if (fault >= phdr->p_vaddr && fault < phdr->p_vaddr + phdr->p_memsz) {
             int num_of_pages = (phdr->p_memsz + 4095)/4096;
             void *page_start = (void *)((uintptr_t)info->si_addr & ~(page_size - 1));
-            void *seg_memory = mmap(page_start, PAGE_SIZE * num_of_pages, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, phdr->p_offset);
+            void *seg_memory = mmap(page_start, PAGE_SIZE * num_of_pages, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+            pread(fd, seg_memory, phdr->p_memsz, phdr->p_offset);
             fragmentation += (num_of_pages * PAGE_SIZE) - phdr->p_memsz;
+            total_pages += num_of_pages;
         }
     }
 }
@@ -54,7 +56,6 @@ void load_and_run_elf(char **exe) {
 
   ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr)); // 1. Load entire binary content into the memory from the ELF file.
   ehdr_read = read(fd, ehdr, sizeof(Elf32_Ehdr));
-  read(fd, program_headers, ehdr->e_phentsize * ehdr->e_phnum);
   int eh_ent = ehdr->e_entry;
   int ph_offset = ehdr->e_phoff;
   int ph_size = ehdr->e_phentsize;
@@ -68,8 +69,9 @@ void load_and_run_elf(char **exe) {
 
   int result = _start(); // 6. Call the "_start" method and print the value returned from the "_start"
   printf("User _start return value = %d\n", result);
+  printf("Total pages allocated: %d\n", total_pages);
   printf("Total page faults: %d\n", page_faults);
-  printf("Fragmentation: %d\n bytes", fragmentation);
+  printf("Fragmentation: %d bytes\n", fragmentation);
 
 }
 

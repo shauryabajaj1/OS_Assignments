@@ -42,8 +42,20 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
         if (fault >= phdr->p_vaddr && fault < phdr->p_vaddr + phdr->p_memsz) {
             int num_of_pages = (phdr->p_memsz + 4095)/4096;
             void *page_start = (void *)((uintptr_t)info->si_addr & ~(page_size - 1));
-            void *seg_memory = mmap(page_start, PAGE_SIZE * num_of_pages, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-            pread(fd, seg_memory, phdr->p_memsz, phdr->p_offset);
+            v_mem = mmap(page_start, PAGE_SIZE * num_of_pages, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+
+            if (v_mem == MAP_FAILED) {
+              printf("Error mapping memory");
+              exit(1);
+            }
+
+            int read_check = pread(fd, v_mem, phdr->p_memsz, phdr->p_offset);
+
+            if (read_check == -1) {
+              printf("Error reading the mapped memory");
+              exit(1);
+            }
+            
             fragmentation += (num_of_pages * PAGE_SIZE) - phdr->p_memsz;
             total_pages += num_of_pages;
         }

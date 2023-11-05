@@ -41,7 +41,6 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
     void *fault_address = info->si_addr;
     size_t page_size = PAGE_SIZE;
     int fault = (int)fault_address;
-    
     printf("Segmentation fault caught at: %p\n", fault_address);
       for (int i = 0; i < ehdr->e_phnum; i++) {
         segment_page_info = (struct SegmentPageInfo *)malloc(sizeof(struct SegmentPageInfo));
@@ -51,7 +50,6 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
           lseek(fd, ehdr->e_phoff + i*ehdr->e_phentsize, SEEK_SET);
           int phdr_read = read(fd, phdr, sizeof(Elf32_Phdr));
         if (fault >= phdr->p_vaddr && fault < phdr->p_vaddr + phdr->p_memsz) {
-            segment_page_info = (struct SegmentPageInfo *)malloc(sizeof(struct SegmentPageInfo));
             int num_of_pages = (phdr->p_memsz + 4095)/4096;
             segment_page_info->total_pages = num_of_pages;
             void *page_start = (void *)((uintptr_t)info->si_addr & ~(page_size - 1));

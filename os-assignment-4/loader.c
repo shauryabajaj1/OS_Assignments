@@ -16,6 +16,13 @@ int total_pages = 0;
 int page_faults = 0;
 int fragmentation = 0;
 
+struct SegmentPageInfo {
+int loaded_pages;
+int total_pages;
+};  
+
+struct SegmentPageInfo* segment_page_info;
+
 /*
  * release memory and other cleanups
  */
@@ -24,8 +31,8 @@ void loader_cleanup()
   free(ehdr);
   free(phdr);
   close(fd);
+  free(segment_page_info);
   munmap(v_mem, phdr->p_memsz);
-
 }
 
 
@@ -34,16 +41,21 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
     void *fault_address = info->si_addr;
     size_t page_size = PAGE_SIZE;
     int fault = (int)fault_address;
+    
     printf("Segmentation fault caught at: %p\n", fault_address);
       for (int i = 0; i < ehdr->e_phnum; i++) {
+        segment_page_info = (struct SegmentPageInfo *)malloc(sizeof(struct SegmentPageInfo));
+        segment_page_info->loaded_pages = 0;
+        segment_page_info->total_pages = 0;
           phdr = (Elf32_Phdr *)malloc(sizeof(Elf32_Phdr));
           lseek(fd, ehdr->e_phoff + i*ehdr->e_phentsize, SEEK_SET);
           int phdr_read = read(fd, phdr, sizeof(Elf32_Phdr));
         if (fault >= phdr->p_vaddr && fault < phdr->p_vaddr + phdr->p_memsz) {
+            segment_page_info = (struct SegmentPageInfo *)malloc(sizeof(struct SegmentPageInfo));
             int num_of_pages = (phdr->p_memsz + 4095)/4096;
+            segment_page_info->total_pages = num_of_pages;
             void *page_start = (void *)((uintptr_t)info->si_addr & ~(page_size - 1));
-            v_mem = mmap(page_start, PAGE_SIZE * num_of_pages, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-
+            v_mem = mmap(page_start, PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
             if (v_mem == MAP_FAILED) {
               printf("Error mapping memory");
               exit(1);
@@ -55,9 +67,12 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
               printf("Error reading the mapped memory");
               exit(1);
             }
-            
+            segment_page_info->loaded_pages++;
+            if ((segment_page_info->loaded_pages * PAGE_SIZE) > phdr->p_memsz) {
             fragmentation += (num_of_pages * PAGE_SIZE) - phdr->p_memsz;
-            total_pages += num_of_pages;
+            }
+
+            total_pages += 1;
         }
     }
 }
@@ -65,7 +80,7 @@ void segfault_handler(int signum, siginfo_t *info, void *context) {
 void load_and_run_elf(char **exe) {
 
   fd = open(exe[1], O_RDONLY);
-
+  
   ehdr = (Elf32_Ehdr *)malloc(sizeof(Elf32_Ehdr)); // 1. Load entire binary content into the memory from the ELF file.
   ehdr_read = read(fd, ehdr, sizeof(Elf32_Ehdr));
   int eh_ent = ehdr->e_entry;
@@ -89,6 +104,7 @@ void load_and_run_elf(char **exe) {
 
 int main(int argc, char **argv)
 {
+
   struct sigaction sa;
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = segfault_handler;
